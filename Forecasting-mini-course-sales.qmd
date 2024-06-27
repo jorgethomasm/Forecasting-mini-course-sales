@@ -1,0 +1,69 @@
+---
+title: "Forecasting Sales Time-Series with XGBoost"
+subtitle: "Sale Products: Kaggle's mini-courses." # only for html output
+author: "Jorge A. Thomas"
+date: "`r Sys.Date()`"
+format:    
+    html:
+      self-contained: true
+      code-fold: true
+      df-print: tibble
+      code-summary: "Show the code"
+      grid: 
+        margin-width: 350px
+execute: 
+  echo: fenced
+reference-location: margin # margin
+citation-location: document
+bibliography: minicoursesales.bib
+# Template: https://quarto-dev.github.io/quarto-gallery/page-layout/tufte.html
+---
+
+## Introduction
+
+Here I present my solution to Kaggle's competition **Forecasting Mini-Course Sales** of 2023. 
+Playground Series - Season 3, Episode 19.
+
+Using the synthetic-generated dataset [@playground-series-s3e19] from a real-Kworld one, you'll follow my workflow developing pipelines on the ETL phase of the DS cycle using the R programming language [@R-base], as well as a tidy approach to forecasting.
+
+```{r}
+#| label: setup
+#| message: false
+#| echo: false
+
+library(tidyverse) # ETL and EDA tools
+library(tictoc) # measure runtime
+
+source("./libs/jthomfuncs.r")
+theme_set(jthomggtheme)
+```
+
+
+
+
+
+```{r}
+#| label: Load Data
+#| warning: false
+
+sales_train_raw <- read_csv("./data/raw/train.csv") # Train, validattion and test dataset
+print("Dimensions of training dataset")
+dim(sales_train_raw)
+
+sales_test_raw <- read_csv("./data/raw/test.csv")  # Features for submission dataset
+print("Dimensions of test dataset containing only Feats.")
+dim(sales_test_raw) 
+
+# Add Target column with NA so both DFs can be concatenated:.id
+sales_test_raw <- 
+  sales_test_raw |> 
+    mutate(num_sold = NA)
+
+# Binding and adding identifier column "dataset" 
+sales_all <- 
+  bind_rows(list(train = sales_train_raw, test = sales_test_raw), .id = "dataset")
+
+print("Available variables:")
+names(sales_all)
+
+```
