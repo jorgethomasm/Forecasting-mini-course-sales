@@ -22,9 +22,10 @@ bibliography: minicoursesales.bib
 ## Introduction
 
 Here I present my solution to Kaggle's competition **Forecasting Mini-Course Sales** of 2023. 
+
 Playground Series - Season 3, Episode 19.
 
-Using the synthetic-generated dataset [@playground-series-s3e19] from a real-Kworld one, you'll follow my workflow developing pipelines on the ETL phase of the DS cycle using the R programming language [@R-base], as well as a tidy approach to forecasting.
+Using the synthetic-generated dataset [@playground-series-s3e19], you'll follow my workflow developing pipelines on the ETL phase of the Data Science cycle using the R programming language [@R-base], as well as a tidy approach to forecasting.
 
 ```{r}
 #| label: setup
@@ -67,3 +68,42 @@ print("Available variables:")
 names(sales_all)
 
 ```
+
+### Count NAs
+
+```{r}
+#| label: Counting NAs
+#| code-fold: false
+
+sales_all |>
+  select(-num_sold) |>
+  count_na() |>
+  knitr::kable(caption = "Courses Sales dataset")
+
+```
+
+### Adding temporal features
+
+```{r}
+
+#' make a function of this!
+#' expand_temporal_feats(datetime_colname)
+
+sales_all <- sales_all |>
+  mutate(year = year(date)) |>
+  mutate(quarter = ceiling(month(date)/3)) |>
+  mutate(month = month(date)) |>
+  mutate(month_day = mday(date)) |>
+  mutate(dow = wday(date, label = TRUE, abbr = FALSE)) |>
+  mutate(isweekend = weekdays(date)  %in% c("Saturday", "Sunday"))
+
+
+
+```
+
+### Visualise Total Sales per Country
+
+
+
+### Add Pandemic Flag
+
