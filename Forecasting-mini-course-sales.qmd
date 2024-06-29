@@ -34,12 +34,11 @@ Using the synthetic-generated dataset [@playground-series-s3e19], you'll follow 
 
 library(tidyverse) # ETL and EDA tools
 library(tictoc) # measure runtime
+library(httpgd)
 
 source("./libs/jthomfuncs.r")
 theme_set(jthomggtheme)
 ```
-
-
 
 
 
@@ -97,13 +96,68 @@ sales_all <- sales_all |>
   mutate(dow = wday(date, label = TRUE, abbr = FALSE)) |>
   mutate(isweekend = weekdays(date)  %in% c("Saturday", "Sunday"))
 
+# Delete "Using LLMS to " from product col
 
+sales_all <- sales_all |>
+  mutate(product = str_remove(product, "Using LLMs to ")) 
+
+
+# Establish categorical variables
+
+sales_all <- sales_all |>
+  mutate(country = factor(country)) |>
+  mutate(store = factor(store)) |>
+  mutate(product = factor(product)) 
+ 
+
+# cat_feats <- c("country", "store", "product")
+# cat_feats <- sales_all |>
+#   mutate(across(all_of(cat_feats), ~ factor(.x, ordered = FALSE)))
 
 ```
 
-### Visualise Total Sales per Country
+### Visualise Total Sales
+
+```{r}
+
+sales_all |> 
+  filter(dataset == "train") |>
+  group_by(country) |>
+  summarise(total_sales = sum(num_sold)) |>
+
+  ggplot(aes(y = country, x = total_sales)) + 
+  geom_col(aes(fill = country)) +
+  geom_text(aes(label = total_sales), size = 6) +
+  labs(y = "Country") + 
+  theme(legend.position = "none", axis.title.y = element_text(angle = 90))
 
 
+# Total Sales TS
+sales_all |> 
+  filter(dataset == "train") |>
+  group_by(date) |>
+  summarise(total_sales = sum(num_sold)) |>
+  mutate(year = as.factor(year(date))) |>
+
+  ggplot(aes(x = date, y = total_sales)) +
+  labs(x = "", y = "Total\nSales") +
+  geom_line(colour = "red") +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b") + 
+  scale_y_continuous(breaks = seq(0, 24000, 2000)) + 
+  facet_wrap(~year, scales = "free_x", nrow = 1) + 
+  theme(axis.text.x  = element_text(angle = 90, size = 10) )
+  
+
+# "%b %d" "%a %d %m %R"
+
+
+sales_all |> 
+  filter(dataset == "train") |>
+  group_by(date, country) |>
+  summarise(total_sales = sum(num_sold)) 
+
+
+```
 
 ### Add Pandemic Flag
 
