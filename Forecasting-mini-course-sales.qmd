@@ -108,7 +108,6 @@ sales_all <- sales_all |>
   mutate(country = factor(country)) |>
   mutate(store = factor(store)) |>
   mutate(product = factor(product)) 
- 
 
 # cat_feats <- c("country", "store", "product")
 # cat_feats <- sales_all |>
@@ -120,15 +119,19 @@ sales_all <- sales_all |>
 
 ```{r}
 
+# country_colours = c("Argentina" = "#6CACE4", "Canada" = "#D80621", "Estonia" =  "#0072CE", "Japan" = "#BC002D", "Spain" = "#F1BF00")
+country_colours = c("#6CACE4", "#D80621", "#0072CE", "#BC002D", "#F1BF00")
+names(country_colours) <- levels(sales_all$country)
+
 sales_all |> 
   filter(dataset == "train") |>
   group_by(country) |>
   summarise(total_sales = sum(num_sold)) |>
-
-  ggplot(aes(y = country, x = total_sales)) + 
+  ggplot(aes(y = fct_reorder(country, total_sales), x = total_sales)) + 
   geom_col(aes(fill = country)) +
   geom_text(aes(label = total_sales), size = 6) +
   labs(y = "Country") + 
+  scale_fill_manual(values = country_colours) +
   theme(legend.position = "none", axis.title.y = element_text(angle = 90))
 
 
@@ -138,26 +141,57 @@ sales_all |>
   group_by(date) |>
   summarise(total_sales = sum(num_sold)) |>
   mutate(year = as.factor(year(date))) |>
-
   ggplot(aes(x = date, y = total_sales)) +
   labs(x = "", y = "Total\nSales") +
   geom_line(colour = "red") +
   scale_x_date(date_breaks = "1 month", date_labels = "%b") + 
   scale_y_continuous(breaks = seq(0, 24000, 2000)) + 
-  facet_wrap(~year, scales = "free_x", nrow = 1) + 
+  facet_wrap(~year, scales = "free_x", nrow = 1) +    
   theme(axis.text.x  = element_text(angle = 90, size = 10) )
   
 
 # "%b %d" "%a %d %m %R"
 
+# sales_all |> 
+#   filter(dataset == "train") |>
+#   group_by(date, country) |>
+#   summarise(total_sales = sum(num_sold)) |>
+#   mutate(year = as.factor(year(date))) |>
+
+#   ggplot(aes(x = date, y = total_sales)) +
+#   labs(x = "", y = "Total\nSales") +
+#   geom_line() +
+#   scale_x_date(date_breaks = "1 month", date_labels = "%b") + 
+#   scale_y_continuous(breaks = seq(0, 8000, 1000)) + 
+#   facet_grid(country ~ year, scales = "free_x") + 
+#   # scale_fill_manual(values = country_colours) +
+#   theme(axis.text.x  = element_text(angle = 90, size = 10) )
+
 
 sales_all |> 
   filter(dataset == "train") |>
   group_by(date, country) |>
-  summarise(total_sales = sum(num_sold)) 
-
+  summarise(total_sales = sum(num_sold)) |>
+  pivot_wider(names_from = country, values_from = total_sales) |>
+  
+  ggplot(aes(x = date)) +
+  labs(x = "", y = "Total\nSales") +
+  geom_line(aes(y = Argentina), colour = "#6CACE4") +
+  geom_line(aes(y = Canada), colour = "#D80621") +
+  geom_line(aes(y = Estonia), colour = "#0072CE") +
+  geom_line(aes(y = Japan), colour = "#BC002D") +
+  geom_line(aes(y = Spain), colour = "#F1BF00") +
+  scale_x_date(date_breaks = "1 years", date_minor_breaks = "6 months", date_labels = "%Y") + 
+  scale_y_continuous(breaks = seq(0, 8000, 1000)) 
+ 
 
 ```
 
 ### Add Pandemic Flag
+
+One can see clearly the pandemic effect starting on March 2020. A feature flag should be added.
+
+```{r}
+
+```
 
