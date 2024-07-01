@@ -30,6 +30,8 @@ Using the synthetic-generated dataset [@playground-series-s3e19], you'll follow 
 ::: {.callout-note appearance="simple"}
 There was an error of the Kaggle team generating the target values of the test set in this synthetic dataset. Good forecast with the public dataset, i.e., train data deviates from the submission (test) results.
 **This means that the best competition results are wrong!**
+For details read: https://www.kaggle.com/competitions/playground-series-s3e19/discussion/425538
+
 :::
 
 
@@ -41,6 +43,7 @@ There was an error of the Kaggle team generating the target values of the test s
 
 library(tidyverse) # ETL and EDA tools
 library(fpp3)  # Forecasting tools
+library(urca)  # Unit Root and Cointegration Tests for Time Series Data
 library(tictoc) # measure runtime
 library(httpgd)
 
@@ -281,17 +284,43 @@ sales_all$holiday[which(sales_all$month == 12 & sales_all$month_day > 23)] <- TR
 
 ## Define a tsibble object
 
+Considering that *country*, *store*, and *product* are keys, there are 75 time-series in total to model.
+
 ```{r}
 
-sales_tsbl <- sales_all |>
+sales <- sales_all |>
   filter(dataset == "train") |>  
   select(-c("id", "dataset")) |>
   as_tsibble(key = c(country, store, product), index = date) 
 
-# tsibble::interval(sales_tsbl)
-# tsibble::is_regular(sales_tsbl)
+# tsibble::interval(sales)
+# tsibble::is_regular(sales)
 
-sales_tsbl
+sales
+
+# Train (fit) models
+
+tic("Training ARIMA")
+
+sales_fit <- sales |>  model(arima = ARIMA(num_sold)) 
+
+toc()
+
+# sales_fit <- sales |>  model(ets = ETS(num_sold), arima = ARIMA(num_sold)) |> mutate(ensemble = (ets + arima)/2)
+
+#left_join
+
 ```
 
-Considering that *country*, *store*, and *product* are keys, there are 75 time-series in total to model.
+
+
+```{r}
+#| label: forecast
+
+# sales_fc <- sales_fit |> forecast(h = "1 years")
+
+
+# Vis
+
+
+```
