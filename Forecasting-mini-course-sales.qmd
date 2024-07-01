@@ -21,19 +21,20 @@ bibliography: minicoursesales.bib
 
 ## Introduction
 
-Here I present my solution to Kaggle's competition **Forecasting Mini-Course Sales** of 2023. 
+Here I present my solution to Kaggle's competition **Forecasting Mini-Course Sales** of 2023.
 
 Playground Series - Season 3, Episode 19.
 
 Using the synthetic-generated dataset [@playground-series-s3e19], you'll follow my workflow developing pipelines on the ETL phase of the Data Science cycle using the R programming language [@R-base], as well as a tidy approach to forecasting.
 
 ::: {.callout-note appearance="simple"}
-There was an error of the Kaggle team generating the target values of the test set in this synthetic dataset. Good forecast with the public dataset, i.e., train data deviates from the submission (test) results.
-**This means that the best competition results are wrong!**
-For details read: https://www.kaggle.com/competitions/playground-series-s3e19/discussion/425538
+There was an error of the Kaggle team generating the target values of the test set in this synthetic dataset. Good forecast with the public dataset, i.e., train data deviates from the submission (test) results. **This means that the best competition results are wrong!** 
 
+For details read the following discussions: 
+
+https://www.kaggle.com/competitions/playground-series-s3e19/discussion/425538
+https://www.kaggle.com/competitions/playground-series-s3e19/discussion/424133
 :::
-
 
 ```{r}
 #| label: setup
@@ -50,8 +51,6 @@ library(httpgd)
 source("./libs/jthomfuncs.r")
 theme_set(jthomggtheme)
 ```
-
-
 
 ```{r}
 #| label: Load Data
@@ -130,6 +129,7 @@ sales_all <- sales_all |>
 ### Visualise Total Sales
 
 #### Total Sales per Country
+
 ```{r}
 #| warning: false
 
@@ -167,7 +167,7 @@ sales_all |>
 
 ```
 
-#### Most Popular Courses 
+#### Most Popular Courses
 
 ```{r}
 
@@ -244,8 +244,8 @@ sales_all |>
   scale_y_continuous(breaks = seq(0, 8000, 1000)) 
 ```
 
-- The effects of the **pandemic** are clear, more stronlgy during the lock-down period.
-- During the last week of every year, i.e., christmas holidays, sales spike. 
+-   The effects of the **pandemic** are clear, more stronlgy during the lock-down period.
+-   During the last week of every year, i.e., christmas holidays, sales spike.
 
 ### Add Pandemic and Holidays Flags
 
@@ -257,6 +257,7 @@ sales_all$pandemy[which(sales_all$year == 2020)] <- TRUE
 
 sales_all$holiday <- FALSE
 sales_all$holiday[which(sales_all$month == 12 & sales_all$month_day > 23)] <- TRUE
+sales_all$holiday[which(sales_all$month == 1 & sales_all$month_day > 1)] <- TRUE
 ```
 
 #### Time-Series: Total Sales per Product
@@ -300,27 +301,53 @@ sales
 
 # Train (fit) models
 
-tic("Training ARIMA")
+#tic("Training ETS and ARIMA models")
 
-sales_fit <- sales |>  model(arima = ARIMA(num_sold)) 
+#sales_fit <- sales %>%   
+#  model(ets = ETS(num_sold), arima = ARIMA(num_sold)) %>% 
+#  mutate(ensemble = (ets + arima)/2)
 
-toc()
+#toc()
 
-# sales_fit <- sales |>  model(ets = ETS(num_sold), arima = ARIMA(num_sold)) |> mutate(ensemble = (ets + arima)/2)
+# 35 minutes
 
-#left_join
+# saveRDS(sales_fit, file = "./models/ets_arima.rds")
+
+sales_fit <- readRDS("./models/ets_arima.rds")
+
+sales_fit
 
 ```
-
 
 
 ```{r}
 #| label: forecast
 
-# sales_fc <- sales_fit |> forecast(h = "1 years")
+sales_fc <- sales_fit |> forecast(h = "1 years")
 
+sales_fc
+
+# test <- sales_arima_fc %>% accuracy(sales, measures = list(MSE=MSE, CRPS=CRPS))
 
 # Vis
+sales_fc %>% 
+  filter(.model == "arima", country == "Canada", store == "Kagglazon", product == "Improve Your Coding") %>% 
+  autoplot(sales, level = NULL) +
+  labs(title = "Canada Sales of Improve Your Coding course on Kagglazon")
 
+
+sales_fc %>% 
+  filter(.model == "ets", country == "Japan", store == "Kagglazon", product == "Improve Your Coding") %>% 
+  autoplot(sales, level = NULL) +
+  labs(title = "Japan's Kagglazon sales of Improve Your Coding course on Kagglazon")
+
+
+sales_fc %>% 
+  filter(.model == "ets", country == "Argentina", store == "Kagglazon", product == "Improve Your Coding") %>% 
+  autoplot(sales, level = NULL) +
+  labs(title = "Argentinas' Kagglazon sales of Improve Your Coding course on Kagglazon")
+
+
+#left_join
 
 ```
