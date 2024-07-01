@@ -27,12 +27,20 @@ Playground Series - Season 3, Episode 19.
 
 Using the synthetic-generated dataset [@playground-series-s3e19], you'll follow my workflow developing pipelines on the ETL phase of the Data Science cycle using the R programming language [@R-base], as well as a tidy approach to forecasting.
 
+::: {.callout-note appearance="simple"}
+There was an error of the Kaggle team generating the target values of the test set in this synthetic dataset. Good forecast with the public dataset, i.e., train data deviates from the submission (test) results.
+**This means that the best competition results are wrong!**
+:::
+
+
 ```{r}
 #| label: setup
 #| message: false
 #| echo: false
+#| warning: false
 
 library(tidyverse) # ETL and EDA tools
+library(fpp3)  # Forecasting tools
 library(tictoc) # measure runtime
 library(httpgd)
 
@@ -72,7 +80,7 @@ names(sales_all)
 
 ```{r}
 #| label: Counting NAs
-#| code-fold: false
+#| code-fold: true
 
 sales_all |>
   select(-num_sold) |>
@@ -94,7 +102,7 @@ sales_all <- sales_all |>
   mutate(month = month(date)) |>
   mutate(month_day = mday(date)) |>
   mutate(dow = wday(date, label = TRUE, abbr = FALSE)) |>
-  mutate(isweekend = weekdays(date)  %in% c("Saturday", "Sunday"))
+  mutate(is_weekend = weekdays(date)  %in% c("Saturday", "Sunday"))
 
 # Delete "Using LLMS to " from product col
 
@@ -103,6 +111,7 @@ sales_all <- sales_all |>
 
 
 # Establish categorical variables
+# Here these are actually "keys" to specify a single time-series
 
 sales_all <- sales_all |>
   mutate(country = factor(country)) |>
@@ -117,10 +126,12 @@ sales_all <- sales_all |>
 
 ### Visualise Total Sales
 
+#### Total Sales per Country
 ```{r}
+#| warning: false
 
-# country_colours = c("Argentina" = "#6CACE4", "Canada" = "#D80621", "Estonia" =  "#0072CE", "Japan" = "#BC002D", "Spain" = "#F1BF00")
-country_colours = c("#6CACE4", "#D80621", "#0072CE", "#BC002D", "#F1BF00")
+# country_colours = c("Argentina" = "#6CACE4", "Canada" = "#D80621", "Estonia" =  "#0072CE", "Japan" = "#636B2F", "Spain" = "#F1BF00")
+country_colours = c("#6CACE4", "#D80621", "#0072CE", "#636B2F", "#F1BF00")
 names(country_colours) <- levels(sales_all$country)
 
 sales_all |> 
@@ -129,27 +140,11 @@ sales_all |>
   summarise(total_sales = sum(num_sold)) |>
   ggplot(aes(y = fct_reorder(country, total_sales), x = total_sales)) + 
   geom_col(aes(fill = country)) +
-  geom_text(aes(label = total_sales), size = 6) +
-  labs(y = "Country") + 
+  geom_text(aes(label = total_sales), size = 4) +
+  labs(y = "Country", x = "Total Sales") + 
   scale_fill_manual(values = country_colours) +
   theme(legend.position = "none", axis.title.y = element_text(angle = 90))
-
-
-# Total Sales TS
-sales_all |> 
-  filter(dataset == "train") |>
-  group_by(date) |>
-  summarise(total_sales = sum(num_sold)) |>
-  mutate(year = as.factor(year(date))) |>
-  ggplot(aes(x = date, y = total_sales)) +
-  labs(x = "", y = "Total\nSales") +
-  geom_line(colour = "red") +
-  scale_x_date(date_breaks = "1 month", date_labels = "%b") + 
-  scale_y_continuous(breaks = seq(0, 24000, 2000)) + 
-  facet_wrap(~year, scales = "free_x", nrow = 1) +    
-  theme(axis.text.x  = element_text(angle = 90, size = 10) )
-  
-
+ 
 # "%b %d" "%a %d %m %R"
 
 # sales_all |> 
@@ -167,6 +162,67 @@ sales_all |>
 #   # scale_fill_manual(values = country_colours) +
 #   theme(axis.text.x  = element_text(angle = 90, size = 10) )
 
+```
+
+#### Most Popular Courses 
+
+```{r}
+
+sales_all |> 
+  filter(dataset == "train") |>
+  group_by(product) |>
+  summarise(total_sales = sum(num_sold)) |>
+  ggplot(aes(y = fct_reorder(product, total_sales), x = total_sales)) + 
+  geom_col(aes(fill = product)) +
+  geom_text(aes(label = total_sales), size = 4) +
+  labs(title = "Using LLMs to..." ,y = "Product (Mini-Course)", x = "Total Sales") + 
+  theme(legend.position = "none", axis.title.y = element_text(angle = 90))
+```
+
+It seems that LLMs are not that useful to win friends and influence people...
+
+#### Response Analysis (Sales)
+
+Here I check the distribution of the target variable in general.
+
+```{r}
+
+sales_all |>
+  filter(dataset == "train") |>
+  group_by(date) |>
+  summarise(total_sales = sum(num_sold)) |>
+
+  ggplot(aes(x = total_sales)) +  
+  geom_histogram(bins = 35, color = "red", fill = "red", alpha = 0.5) +
+  # scale_x_continuous(breaks = seq(0, 800, 50), labels = scales::comma) +  
+  labs(x = "Sold Mini-Courses")
+
+```
+
+#### Time-Series: Total Sales (Aggregated Sum)
+
+```{r}
+#| warning: false
+
+sales_all |> 
+  filter(dataset == "train") |>
+  group_by(date) |>
+  summarise(total_sales = sum(num_sold)) |>
+  mutate(year = as.factor(year(date))) |>
+
+  ggplot(aes(x = date, y = total_sales)) +
+  labs(x = "", y = "Total\nSales") +
+  geom_line(colour = "red") +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b") + 
+  scale_y_continuous(breaks = seq(0, 24000, 2000)) + 
+  facet_wrap(~year, scales = "free_x", nrow = 1) +    
+  theme(axis.text.x  = element_text(angle = 90, size = 8))
+```
+
+#### Time-Series: Total Sales per Country
+
+```{r}
+#| warning: false
 
 sales_all |> 
   filter(dataset == "train") |>
@@ -179,19 +235,63 @@ sales_all |>
   geom_line(aes(y = Argentina), colour = "#6CACE4") +
   geom_line(aes(y = Canada), colour = "#D80621") +
   geom_line(aes(y = Estonia), colour = "#0072CE") +
-  geom_line(aes(y = Japan), colour = "#BC002D") +
+  geom_line(aes(y = Japan), colour = "#636B2F") +
   geom_line(aes(y = Spain), colour = "#F1BF00") +
   scale_x_date(date_breaks = "1 years", date_minor_breaks = "6 months", date_labels = "%Y") + 
   scale_y_continuous(breaks = seq(0, 8000, 1000)) 
- 
-
 ```
 
-### Add Pandemic Flag
+- The effects of the **pandemic** are clear, more stronlgy during the lock-down period.
+- During the last week of every year, i.e., christmas holidays, sales spike. 
+
+### Add Pandemic and Holidays Flags
 
 One can see clearly the pandemic effect starting on March 2020. A feature flag should be added.
 
 ```{r}
+sales_all$pandemy <- FALSE
+sales_all$pandemy[which(sales_all$year == 2020)] <- TRUE
+
+sales_all$holiday <- FALSE
+sales_all$holiday[which(sales_all$month == 12 & sales_all$month_day > 23)] <- TRUE
+```
+
+#### Time-Series: Total Sales per Product
+
+```{r}
+
+# sales_all |> 
+#   filter(dataset == "train") |>
+#   group_by(date, product) |>
+#   summarise(total_sales = sum(num_sold)) |>
+#   pivot_wider(names_from = product, values_from = total_sales) |> 
+
+#   ggplot(aes(x = date, y = num_sold)) +
+#   labs(x = "", y = "Total\nSales") +
+#   geom_line() +
+#   scale_x_date(date_breaks = "1 years", date_minor_breaks = "6 months", date_labels = "%Y") + 
+#   scale_y_continuous(breaks = seq(0, 6000, 1000)) +
+
+#   facet_grid(date ~ product, scales = "free_x") + 
+#   # scale_fill_manual(values = country_colours) +
+#   theme(axis.text.x  = element_text(angle = 90, size = 10) )
+
 
 ```
 
+## Define a tsibble object
+
+```{r}
+
+sales_tsbl <- sales_all |>
+  filter(dataset == "train") |>  
+  select(-c("id", "dataset")) |>
+  as_tsibble(key = c(country, store, product), index = date) 
+
+# tsibble::interval(sales_tsbl)
+# tsibble::is_regular(sales_tsbl)
+
+sales_tsbl
+```
+
+Considering that *country*, *store*, and *product* are keys, there are 75 time-series in total to model.
