@@ -47,6 +47,7 @@ library(fpp3)  # Forecasting tools
 library(urca)  # Unit Root and Cointegration Tests for Time Series Data
 library(tictoc) # measure runtime
 library(httpgd)
+library(plotly)
 
 source("./libs/jthomfuncs.r")
 theme_set(jthomggtheme)
@@ -126,7 +127,44 @@ sales_all <- sales_all |>
 
 ```
 
-### Visualise Total Sales
+### Visualising Data 
+
+#### Total Sales: Aggregated Sum of Time-Series
+
+```{r}
+#| warning: false
+
+sales_all |> 
+  filter(dataset == "train") |>
+  group_by(date) |>
+  summarise(total_sales = sum(num_sold)) |>
+  mutate(year = as.factor(year(date))) |>
+
+  ggplot(aes(x = date, y = total_sales)) +
+  labs(x = "", y = "Total\nSales") +
+  geom_line(colour = "red") +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b") + 
+  scale_y_continuous(breaks = seq(0, 24000, 2000)) + 
+  facet_wrap(~year, scales = "free_x", nrow = 1) +    
+  theme(axis.text.x  = element_text(angle = 90, size = 8))
+```
+
+#### Histogram of Total Sales (output)
+
+Here I check the distribution of the target variable in general.
+
+```{r}
+
+sales_all |>
+  filter(dataset == "train") |>
+  group_by(date) |>
+  summarise(total_sales = sum(num_sold)) |>
+  ggplot(aes(x = total_sales)) +  
+  geom_histogram(bins = 35, color = "red", fill = "red", alpha = 0.5) +
+  # scale_x_continuous(breaks = seq(0, 800, 50), labels = scales::comma) +  
+  labs(x = "Sold Mini-Courses")
+```
+
 
 #### Total Sales per Country
 
@@ -146,7 +184,8 @@ sales_all |>
   geom_text(aes(label = total_sales), size = 4) +
   labs(y = "Country", x = "Total Sales") + 
   scale_fill_manual(values = country_colours) +
-  theme(legend.position = "none", axis.title.y = element_text(angle = 90))
+  theme(legend.position = "none", 
+        axis.title.y = element_text(angle = 90))
  
 # "%b %d" "%a %d %m %R"
 
@@ -167,6 +206,37 @@ sales_all |>
 
 ```
 
+#### Total Daily Sales per Country
+
+This is the train dataset
+
+```{r}
+#| warning: false
+
+plt_daily_sales_per_country <-
+  sales_all |> 
+  filter(dataset == "train") |>
+  group_by(date, country) |>
+  summarise(total_sales = sum(num_sold)) |>
+  pivot_wider(names_from = country, values_from = total_sales) |>
+  
+  ggplot(aes(x = date)) +
+  labs(x = "", y = "Total\nSales") +
+  geom_line(aes(y = Argentina), colour = "#6CACE4") +
+  geom_line(aes(y = Canada), colour = "#D80621") +
+  geom_line(aes(y = Estonia), colour = "#0072CE") +
+  geom_line(aes(y = Japan), colour = "#636B2F") +
+  geom_line(aes(y = Spain), colour = "#F1BF00") +
+  scale_x_date(date_breaks = "1 years", date_minor_breaks = "6 months", date_labels = "%Y") + 
+  scale_y_continuous(breaks = seq(0, 8000, 1000)) 
+
+plot(plt_daily_sales_per_country)
+#  plotly::ggplotly(plt_daily_sales_per_country)
+```
+
+-   The effects of the **pandemic** are clear, more stronlgy during the lock-down period.
+-   During the last week of every year, i.e., christmas holidays, sales spike.
+
 #### Most Popular Courses
 
 ```{r}
@@ -184,69 +254,6 @@ sales_all |>
 
 It seems that LLMs are not that useful to win friends and influence people...
 
-#### Response Analysis (Sales)
-
-Here I check the distribution of the target variable in general.
-
-```{r}
-
-sales_all |>
-  filter(dataset == "train") |>
-  group_by(date) |>
-  summarise(total_sales = sum(num_sold)) |>
-
-  ggplot(aes(x = total_sales)) +  
-  geom_histogram(bins = 35, color = "red", fill = "red", alpha = 0.5) +
-  # scale_x_continuous(breaks = seq(0, 800, 50), labels = scales::comma) +  
-  labs(x = "Sold Mini-Courses")
-
-```
-
-#### Time-Series: Total Sales (Aggregated Sum)
-
-```{r}
-#| warning: false
-
-sales_all |> 
-  filter(dataset == "train") |>
-  group_by(date) |>
-  summarise(total_sales = sum(num_sold)) |>
-  mutate(year = as.factor(year(date))) |>
-
-  ggplot(aes(x = date, y = total_sales)) +
-  labs(x = "", y = "Total\nSales") +
-  geom_line(colour = "red") +
-  scale_x_date(date_breaks = "1 month", date_labels = "%b") + 
-  scale_y_continuous(breaks = seq(0, 24000, 2000)) + 
-  facet_wrap(~year, scales = "free_x", nrow = 1) +    
-  theme(axis.text.x  = element_text(angle = 90, size = 8))
-```
-
-#### Time-Series: Total Sales per Country
-
-```{r}
-#| warning: false
-
-sales_all |> 
-  filter(dataset == "train") |>
-  group_by(date, country) |>
-  summarise(total_sales = sum(num_sold)) |>
-  pivot_wider(names_from = country, values_from = total_sales) |>
-  
-  ggplot(aes(x = date)) +
-  labs(x = "", y = "Total\nSales") +
-  geom_line(aes(y = Argentina), colour = "#6CACE4") +
-  geom_line(aes(y = Canada), colour = "#D80621") +
-  geom_line(aes(y = Estonia), colour = "#0072CE") +
-  geom_line(aes(y = Japan), colour = "#636B2F") +
-  geom_line(aes(y = Spain), colour = "#F1BF00") +
-  scale_x_date(date_breaks = "1 years", date_minor_breaks = "6 months", date_labels = "%Y") + 
-  scale_y_continuous(breaks = seq(0, 8000, 1000)) 
-```
-
--   The effects of the **pandemic** are clear, more stronlgy during the lock-down period.
--   During the last week of every year, i.e., christmas holidays, sales spike.
-
 ### Add Pandemic and Holidays Flags
 
 One can see clearly the pandemic effect starting on March 2020. A feature flag should be added.
@@ -258,32 +265,37 @@ sales_all$pandemy[which(sales_all$year == 2020)] <- TRUE
 sales_all$holiday <- FALSE
 sales_all$holiday[which(sales_all$month == 12 & sales_all$month_day > 23)] <- TRUE
 sales_all$holiday[which(sales_all$month == 1 & sales_all$month_day > 1)] <- TRUE
+
+# Japan National Holidays (Sales spike)
+sales_all$holiday[which(sales_all$country == "Japan", sales_all$month == 5 & sales_all$month_day > 2 & sales_all$month_day < 6)] <- TRUE
 ```
 
-#### Time-Series: Total Sales per Product
+#### Total Daily Sales per Product (Mini-Courses)
 
 ```{r}
 
-# sales_all |> 
-#   filter(dataset == "train") |>
-#   group_by(date, product) |>
-#   summarise(total_sales = sum(num_sold)) |>
-#   pivot_wider(names_from = product, values_from = total_sales) |> 
+sales_all |> 
+  filter(dataset == "train") |>
+  group_by(date, product) |>
+  summarise(total_sales = sum(num_sold)) |>
+  # pivot_wider(names_from = product, values_from = total_sales) |> 
 
-#   ggplot(aes(x = date, y = num_sold)) +
-#   labs(x = "", y = "Total\nSales") +
-#   geom_line() +
-#   scale_x_date(date_breaks = "1 years", date_minor_breaks = "6 months", date_labels = "%Y") + 
-#   scale_y_continuous(breaks = seq(0, 6000, 1000)) +
-
-#   facet_grid(date ~ product, scales = "free_x") + 
-#   # scale_fill_manual(values = country_colours) +
-#   theme(axis.text.x  = element_text(angle = 90, size = 10) )
-
+  ggplot(aes(x = date, y = total_sales)) +
+  labs(x = "", y = "Total\nSales") +
+  geom_line(aes(colour = product)) +
+  scale_x_date(date_breaks = "1 years", date_minor_breaks = "6 months", date_labels = "%Y") + 
+  scale_y_continuous(breaks = seq(0, 6000, 1000)) +
+  facet_wrap(~product, ncol = 1) + 
+  # scale_fill_manual(values = country_colours) +
+  theme(legend.position = "none", 
+        axis.text.x  = element_text(angle = 0, size = 10), 
+        axis.text.y = element_text(size = 8))
 
 ```
 
-## Define a tsibble object
+## Training Forecast Models 
+
+### ETS and ARIMA 
 
 Considering that *country*, *store*, and *product* are keys, there are 75 time-series in total to model.
 
@@ -296,10 +308,9 @@ sales <- sales_all |>
 
 # tsibble::interval(sales)
 # tsibble::is_regular(sales)
+# sales
 
-sales
-
-# Train (fit) models
+# Train (fit) models (35 minutes approx.)
 
 #tic("Training ETS and ARIMA models")
 
@@ -308,45 +319,42 @@ sales
 #  mutate(ensemble = (ets + arima)/2)
 
 #toc()
-
-# 35 minutes
-
 # saveRDS(sales_fit, file = "./models/ets_arima.rds")
-
 sales_fit <- readRDS("./models/ets_arima.rds")
 
 sales_fit
 
 ```
 
+### Visualising Forecasts
+
+Picking one Time-Series (from 75) to visualise model performances.
+
+#### Canada's sales of "Improve Your Coding course" on Kagglazon
 
 ```{r}
 #| label: forecast
 
 sales_fc <- sales_fit |> forecast(h = "1 years")
-
-sales_fc
+# sales_fc
 
 # test <- sales_arima_fc %>% accuracy(sales, measures = list(MSE=MSE, CRPS=CRPS))
 
 # Vis
-sales_fc %>% 
-  filter(.model == "arima", country == "Canada", store == "Kagglazon", product == "Improve Your Coding") %>% 
+sales_fc |> 
+  filter(.model == "arima", country == "Canada", store == "Kagglazon", product == "Improve Your Coding") |> 
   autoplot(sales, level = NULL) +
-  labs(title = "Canada Sales of Improve Your Coding course on Kagglazon")
+  labs(title = "ARIMA") + theme(axis.title.y = element_text(angle = 90))
 
-
-sales_fc %>% 
-  filter(.model == "ets", country == "Japan", store == "Kagglazon", product == "Improve Your Coding") %>% 
+sales_fc |> 
+  filter(.model == "ets", country == "Canada", store == "Kagglazon", product == "Improve Your Coding") |> 
   autoplot(sales, level = NULL) +
-  labs(title = "Japan's Kagglazon sales of Improve Your Coding course on Kagglazon")
+  labs(title = "ETS") + theme(axis.title.y = element_text(angle = 90))
 
-
-sales_fc %>% 
-  filter(.model == "ets", country == "Argentina", store == "Kagglazon", product == "Improve Your Coding") %>% 
-  autoplot(sales, level = NULL) +
-  labs(title = "Argentinas' Kagglazon sales of Improve Your Coding course on Kagglazon")
-
+# sales_fc |> 
+#   filter(.model == "ensemble", country == "Canada", store == "Kagglazon", product == "Improve Your Coding") |> 
+#   autoplot(sales, level = NULL) +
+#   labs(title = "Ensemble")
 
 #left_join
 
